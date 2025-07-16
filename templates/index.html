@@ -1,87 +1,133 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <title>TubeDown 🌍</title>
-  <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <title>Videora – YouTube Video İndir</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            color: #2b6cb0;
+        }
+        form {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        input, select, button {
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #225ea8;
+        }
+        #progressBox {
+            display: none;
+            margin-top: 30px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+        #progressBox p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>TubeDown 🎬 Çok Kullanıcılı</h1>
+
+    <h1>🎬 Videora</h1>
+    <p>YouTube videolarını doğrudan indir</p>
 
     <form id="downloadForm">
-      <input type="text" name="url" placeholder="YouTube linki" required autocomplete="off">
-      <div>
-        <label><input type="radio" name="format" value="mp4" checked> MP4</label>
-        <label><input type="radio" name="format" value="mp3"> MP3</label>
-      </div>
-      <div>
-        <label><input type="radio" name="resolution" value="720" checked> 720p</label>
-        <label><input type="radio" name="resolution" value="1080"> 1080p</label>
-      </div>
-      <button type="submit">İndir</button>
+        <input type="text" name="url" placeholder="YouTube video linkini girin" required><br>
+        <select name="format" required>
+            <option value="mp4">MP4 (Video)</option>
+            <option value="mp3">MP3 (Ses)</option>
+        </select><br>
+        <select name="resolution" required>
+            <option value="360">360p</option>
+            <option value="480">480p</option>
+            <option value="720">720p</option>
+            <option value="1080">1080p</option>
+        </select><br>
+        <button type="submit">İndir</button>
     </form>
 
-    <div id="loading" style="display:none;">
-      <div class="progress-container">
-        <div id="progressBar" class="progress-bar"></div>
-      </div>
-      <p id="progressText">Yükleniyor ⏳</p>
+    <div id="progressBox">
+        <h3>İndirme İlerlemesi</h3>
+        <p>% Yükleniyor: <span id="percent">0</span></p>
+        <p>İndirme Hızı: <span id="speed">0</span> MB/s</p>
+        <p>Kalan Süre: <span id="eta">0</span> saniye</p>
     </div>
-  </div>
 
-  <!-- Tema geçişi: Sabit switch butonu -->
-  <div class="theme-toggle">
-    <label class="switch">
-      <input type="checkbox" id="toggleTheme" onchange="toggleTheme()">
-      <span class="slider"></span>
-    </label>
-  </div>
+    <script>
+        let progressInterval;
+        let userId = '';
 
-  <script>
-    let progressInterval = null;
+        function startTrackingProgress(id) {
+            userId = id;
+            document.getElementById('progressBox').style.display = 'block';
 
-    document.getElementById("downloadForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      if (progressInterval) clearInterval(progressInterval);
-
-      const formData = new FormData(this);
-      document.getElementById("loading").style.display = "block";
-
-      fetch("/download", {
-        method: "POST",
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "success") {
-          const userId = data.user_id;
-
-          progressInterval = setInterval(() => {
-            fetch(`/progress/${userId}`)
-              .then(res => res.json())
-              .then(progress => {
-                const bar = document.getElementById('progressBar');
-                const text = document.getElementById('progressText');
-
-                bar.style.width = progress.percent + '%';
-                text.textContent = `${progress.percent.toFixed(1)}% tamamlandı`;
-
-                if (progress.percent >= 100) {
-                  clearInterval(progressInterval);
-                  text.textContent = '✔️ İndirme tamamlandı';
-                }
-              });
-          }, 1000);
-        } else {
-          alert("Hata: " + data.message);
+            progressInterval = setInterval(() => {
+                fetch(`/progress/${userId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('percent').textContent = data.percent.toFixed(1);
+                        document.getElementById('speed').textContent = data.speed.toFixed(2);
+                        document.getElementById('eta').textContent = data.eta.toFixed(0);
+                    });
+            }, 1500);
         }
-      });
-    });
 
-    function toggleTheme() {
-      document.body.classList.toggle("light-mode");
-    }
-  </script>
+        document.getElementById('downloadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+
+            const fakeUserId = Math.random().toString(36).substring(2, 10); // gerçek UUID entegrasyonu gerekebilir
+            startTrackingProgress(fakeUserId);
+
+            fetch('/download', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.blob())
+            .then(blob => {
+                clearInterval(progressInterval);
+                document.getElementById('progressBox').style.display = 'none';
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "video." + formData.get("format");
+                a.click();
+            })
+            .catch(err => {
+                clearInterval(progressInterval);
+                document.getElementById('progressBox').style.display = 'none';
+                alert("İndirme sırasında hata oluştu: " + err);
+            });
+        });
+    </script>
+
 </body>
 </html>
