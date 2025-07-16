@@ -1,7 +1,7 @@
 from flask import Flask, request, send_file, render_template, jsonify
+import subprocess
 import yt_dlp
 import os
-import webbrowser
 import json
 import uuid
 import shutil
@@ -48,6 +48,7 @@ def download():
         'merge_output_format': 'mp4' if format_choice == 'mp4' else None,
         'socket_timeout': 60,
         'progress_hooks': [hook_with_id],
+        'cookiesfromfile': 'cookies.txt',
         'postprocessors': [
             {
                 'key': 'FFmpegExtractAudio',
@@ -72,12 +73,10 @@ def download():
             else:
                 filename = os.path.splitext(filename)[0] + '.mp4'
 
-        # Dosyayı gönder
         response = send_file(filename, as_attachment=True)
 
-        # Gecikmeli silme işlemini arka planda başlat
         def delayed_cleanup(path):
-            time.sleep(5)  # dosya aktarımı bitene kadar bekle
+            time.sleep(5)
             try:
                 shutil.rmtree(path)
             except Exception as e:
@@ -88,7 +87,10 @@ def download():
         return response
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        error_message = str(e)
+        if "confirm you're not a bot" in error_message.lower():
+            return jsonify({'status': 'error', 'message': 'YouTube bu videoya özel doğrulama eklemiş. Cookie ile çözüm mümkün olmadı. Lütfen başka bir bağlantı deneyin.'}), 403
+        return jsonify({'status': 'error', 'message': error_message}), 500
 
 @app.route('/progress/<user_id>')
 def progress(user_id):
