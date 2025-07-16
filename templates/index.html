@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>TubeDown 🌍</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>TubeDown 🎬 Çok Kullanıcılı</h1>
+
+    <form id="downloadForm">
+      <input type="text" name="url" placeholder="YouTube linki" required autocomplete="off">
+      <div>
+        <label><input type="radio" name="format" value="mp4" checked> MP4</label>
+        <label><input type="radio" name="format" value="mp3"> MP3</label>
+      </div>
+      <div>
+        <label><input type="radio" name="resolution" value="720" checked> 720p</label>
+        <label><input type="radio" name="resolution" value="1080"> 1080p</label>
+      </div>
+      <button type="submit">İndir</button>
+    </form>
+
+    <div id="loading" style="display:none;">
+      <div class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+      <p id="progressText">Yükleniyor ⏳</p>
+    </div>
+  </div>
+
+  <!-- Tema geçişi: Sabit switch butonu -->
+  <div class="theme-toggle">
+    <label class="switch">
+      <input type="checkbox" id="toggleTheme" onchange="toggleTheme()">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <script>
+    let progressInterval = null;
+
+    document.getElementById("downloadForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      if (progressInterval) clearInterval(progressInterval);
+
+      const formData = new FormData(this);
+      document.getElementById("loading").style.display = "block";
+
+      fetch("/download", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success") {
+          const userId = data.user_id;
+
+          progressInterval = setInterval(() => {
+            fetch(`/progress/${userId}`)
+              .then(res => res.json())
+              .then(progress => {
+                const bar = document.getElementById('progressBar');
+                const text = document.getElementById('progressText');
+
+                bar.style.width = progress.percent + '%';
+                text.textContent = `${progress.percent.toFixed(1)}% tamamlandı`;
+
+                if (progress.percent >= 100) {
+                  clearInterval(progressInterval);
+                  text.textContent = '✔️ İndirme tamamlandı';
+                }
+              });
+          }, 1000);
+        } else {
+          alert("Hata: " + data.message);
+        }
+      });
+    });
+
+    function toggleTheme() {
+      document.body.classList.toggle("light-mode");
+    }
+  </script>
+</body>
+</html>
