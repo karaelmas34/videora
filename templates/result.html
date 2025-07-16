@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Videora – İndirme Sonucu</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            text-align: center;
+            padding: 50px;
+        }
+        .status-box {
+            background-color: #fff;
+            border: 2px solid #ddd;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+        .status-message {
+            font-size: 18px;
+            color: #333;
+        }
+        a.button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2b6cb0;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+        a.button:hover {
+            background-color: #225ea8;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-box">
+        <h2>İndirme Durumu</h2>
+        <p class="status-message">{{ status }}</p>
+        <a href="/" class="button">Yeni Link ile Devam Et</a>
+    </div>
+</body>
+</html>
