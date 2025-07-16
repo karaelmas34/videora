@@ -17,6 +17,10 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 def index():
     return render_template('index.html')
 
+@app.route('/cookie-test')
+def cookie_test():
+    return jsonify({'cookie_exists': os.path.exists("cookies.txt")})
+
 @app.route('/download', methods=['POST'])
 def download():
     url = request.form['url']
