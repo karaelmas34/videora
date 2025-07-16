@@ -1,5 +1,4 @@
-from flask import Flask, request, send_file, render_template, jsonify
-import subprocess
+from flask import Flask, request, jsonify, send_file, render_template
 import yt_dlp
 import os
 import json
@@ -65,18 +64,11 @@ def download():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+            ydl.extract_info(url, download=True)
 
-            if format_choice == 'mp3':
-                filename = os.path.splitext(filename)[0] + '.mp3'
-            else:
-                filename = os.path.splitext(filename)[0] + '.mp4'
-
-        response = send_file(filename, as_attachment=True)
-
+        # Gecikmeli temizlik
         def delayed_cleanup(path):
-            time.sleep(5)
+            time.sleep(20)
             try:
                 shutil.rmtree(path)
             except Exception as e:
@@ -84,13 +76,10 @@ def download():
 
         threading.Thread(target=delayed_cleanup, args=(user_dir,), daemon=True).start()
 
-        return response
+        return jsonify({'status': 'success', 'user_id': user_id})
 
     except Exception as e:
-        error_message = str(e)
-        if "confirm you're not a bot" in error_message.lower():
-            return jsonify({'status': 'error', 'message': 'YouTube bu videoya özel doğrulama eklemiş. Cookie ile çözüm mümkün olmadı. Lütfen başka bir bağlantı deneyin.'}), 403
-        return jsonify({'status': 'error', 'message': error_message}), 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/progress/<user_id>')
 def progress(user_id):
@@ -100,6 +89,19 @@ def progress(user_id):
             return jsonify(json.load(f))
     except:
         return jsonify({'percent': 0, 'speed': 0, 'eta': 0})
+
+@app.route('/file/<user_id>')
+def file_download(user_id):
+    user_dir = os.path.join(DOWNLOAD_DIR, user_id)
+    try:
+        for ext in ['.mp3', '.mp4']:
+            for file in os.listdir(user_dir):
+                if file.endswith(ext):
+                    full_path = os.path.join(user_dir, file)
+                    return send_file(full_path, as_attachment=True)
+        return jsonify({'status': 'error', 'message': 'Dosya bulunamadı'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000, debug=True)
