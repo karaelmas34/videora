@@ -132,4 +132,4 @@ def file_download(user_id):
 
 # app.py'nin en sonunda sadece bu olsun:
 if __name__ == '__main__':
-    pass  # Lokal test için buraya app.run() eklenebilir
+    app.run(host='0.0.0.0', port=5000)
