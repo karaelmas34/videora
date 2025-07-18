@@ -6,6 +6,7 @@ import uuid
 import shutil
 import threading
 import time
+import requests  # ✅ reCAPTCHA doğrulaması için gerekli
 from progress_hook import progress_writer
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -13,16 +14,28 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# ✅ reCAPTCHA doğrulama fonksiyonu
+def verify_recaptcha(token):
+    secret_key = "6LcEY4crAAAAADo4OS9wcJiR8aUUq-0qnhGP5zMS"
+    payload = {
+        'secret': secret_key,
+        'response': token
+    }
+    r = requests.post('https://www.google.com/recaptcha/api/siteverify', data=payload)
+    result = r.json()
+    return result.get('success', False)
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/cookie-test')
-def cookie_test():
-    return jsonify({'cookie_exists': os.path.exists("cookies.txt")})
-
 @app.route('/download', methods=['POST'])
 def download():
+    # ✅ reCAPTCHA doğrulaması
+    recaptcha_token = request.form.get('g-recaptcha-response')
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({'status': 'error', 'message': 'reCAPTCHA doğrulaması başarısız'}), 403
+
     url = request.form['url']
     format_choice = request.form['format']
     resolution = request.form['resolution']
@@ -70,17 +83,27 @@ def download():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
 
-        # Gecikmeli temizlik
-        def delayed_cleanup(path):
-            time.sleep(20)
+        response_file = None
+        for ext in ['.mp3', '.mp4']:
+            for file in os.listdir(user_dir):
+                if file.endswith(ext):
+                    response_file = os.path.join(user_dir, file)
+                    break
+
+        if not response_file:
+            return jsonify({'status': 'error', 'message': 'Dosya bulunamadı'}), 404
+
+        response = send_file(response_file, as_attachment=True)
+
+        def cleanup():
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(user_dir)
+                print(f"✅ Klasör silindi: {user_id}")
             except Exception as e:
-                print(f"Temizlik hatası: {e}")
+                print(f"❌ Temizlik hatası: {e}")
 
-        threading.Thread(target=delayed_cleanup, args=(user_dir,), daemon=True).start()
-
-        return jsonify({'status': 'success', 'user_id': user_id})
+        response.call_on_close(cleanup)
+        return response
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -108,4 +131,4 @@ def file_download(user_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True)
