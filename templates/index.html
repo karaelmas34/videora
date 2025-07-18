@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>TubeDown 🌍</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
   <div class="container">
@@ -19,6 +20,10 @@
         <label><input type="radio" name="resolution" value="720" checked> 720p</label>
         <label><input type="radio" name="resolution" value="1080"> 1080p</label>
       </div>
+
+      <!-- ✅ reCAPTCHA kutusu -->
+      <div class="g-recaptcha" data-sitekey="6LcEY4crAAAAALen0S56cvLdOaMkvwX1Q2_rbFMI"></div>
+
       <button type="submit">İndir</button>
     </form>
 
@@ -38,70 +43,82 @@
     </label>
   </div>
 
-  <script>
-    let progressInterval = null;
+<script>
+  let progressInterval = null;
 
-    document.getElementById("downloadForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      if (progressInterval) clearInterval(progressInterval);
+  document.getElementById("downloadForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (progressInterval) clearInterval(progressInterval);
 
-      const formData = new FormData(this);
-      document.getElementById("loading").style.display = "block";
+    const formData = new FormData(this);
+    const recaptchaResponse = grecaptcha.getResponse();
 
-      fetch("/download", {
-        method: "POST",
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "success") {
-          const userId = data.user_id;
-
-          progressInterval = setInterval(() => {
-            fetch(`/progress/${userId}`)
-              .then(res => res.json())
-              .then(progress => {
-                const bar = document.getElementById('progressBar');
-                const text = document.getElementById('progressText');
-
-                bar.style.width = progress.percent + '%';
-                text.textContent = `${progress.percent.toFixed(1)}% tamamlandı`;
-
-                if (progress.percent >= 100) {
-                  clearInterval(progressInterval);
-                  text.textContent = '✔️ İndirme tamamlandı';
-                }
-              });
-          }, 1000);
-
-          // Video dosyasını al ve indir
-          fetch(`/file/${userId}`)
-            .then(res => res.blob())
-            .then(blob => {
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = "video." + formData.get("format");
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              document.getElementById("loading").style.display = "none";
-            });
-
-        } else {
-          document.getElementById("loading").style.display = "none";
-          alert("Hata: " + data.message);
-        }
-      })
-      .catch(err => {
-        document.getElementById("loading").style.display = "none";
-        alert("İstek gönderilirken hata oluştu: " + err);
-      });
-    });
-
-    function toggleTheme() {
-      document.body.classList.toggle("light-mode");
+    if (!recaptchaResponse) {
+      alert("Lütfen reCAPTCHA doğrulamasını tamamlayın.");
+      document.getElementById("loading").style.display = "none";
+      return;
     }
-  </script>
+
+    formData.append("g-recaptcha-response", recaptchaResponse);
+    document.getElementById("loading").style.display = "block";
+
+    fetch("/download", {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "success") {
+        const userId = data.user_id;
+
+        progressInterval = setInterval(() => {
+          fetch(`/progress/${userId}`)
+            .then(res => res.json())
+            .then(progress => {
+              const bar = document.getElementById('progressBar');
+              const text = document.getElementById('progressText');
+
+              const raw = parseFloat(progress.percent);
+              const percent = isNaN(raw) ? 0 : raw;
+
+              bar.style.width = percent + '%';
+              text.textContent = `${percent.toFixed(1)}% tamamlandı`;
+
+              if (percent >= 100) {
+                clearInterval(progressInterval);
+                text.textContent = '✔️ İndirme tamamlandı';
+              }
+            });
+        }, 1000);
+
+        // Video dosyasını al ve indir
+        fetch(`/file/${userId}`)
+          .then(res => res.blob())
+          .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "video." + formData.get("format");
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            document.getElementById("loading").style.display = "none";
+          });
+
+      } else {
+        document.getElementById("loading").style.display = "none";
+        alert("Hata: " + data.message);
+      }
+    })
+    .catch(err => {
+      document.getElementById("loading").style.display = "none";
+      alert("İstek gönderilirken hata oluştu: " + err);
+    });
+  });
+
+  function toggleTheme() {
+    document.body.classList.toggle("light-mode");
+  }
+</script>
 </body>
 </html>
