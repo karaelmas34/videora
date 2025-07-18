@@ -130,5 +130,6 @@ def file_download(user_id):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+# app.py'nin en sonunda sadece bu olsun:
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    pass  # Lokal test için buraya app.run() eklenebilir
