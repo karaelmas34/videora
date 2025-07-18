@@ -21,10 +21,11 @@
         <label><input type="radio" name="resolution" value="1080"> 1080p</label>
       </div>
 
-      <!-- ✅ reCAPTCHA kutusu -->
-      <div class="g-recaptcha" data-sitekey="6LcEY4crAAAAALen0S56cvLdOaMkvwX1Q2_rbFMI"></div>
-
+      <!-- ✅ Buton önce -->
       <button type="submit">İndir</button>
+
+      <!-- ✅ CAPTCHA kutusu alta taşındı -->
+      <div class="g-recaptcha" data-sitekey="6LcEY4crAAAAALen0S56cvLdOaMkvwX1Q2_rbFMI"></div>
     </form>
 
     <div id="loading" style="display:none;">
@@ -32,6 +33,8 @@
         <div id="progressBar" class="progress-bar"></div>
       </div>
       <p id="progressText">Yükleniyor ⏳</p>
+      <p id="speedText">Hız: -</p>
+      <p id="etaText">Kalan süre: -</p>
     </div>
   </div>
 
@@ -77,6 +80,8 @@
             .then(progress => {
               const bar = document.getElementById('progressBar');
               const text = document.getElementById('progressText');
+              const speedText = document.getElementById('speedText');
+              const etaText = document.getElementById('etaText');
 
               const raw = parseFloat(progress.percent);
               const percent = isNaN(raw) ? 0 : raw;
@@ -84,9 +89,17 @@
               bar.style.width = percent + '%';
               text.textContent = `${percent.toFixed(1)}% tamamlandı`;
 
+              const speed = progress.speed ? (progress.speed / 1024).toFixed(1) + ' KB/s' : '-';
+              const eta = progress.eta ? progress.eta.toFixed(1) + ' sn' : '-';
+
+              speedText.textContent = `Hız: ${speed}`;
+              etaText.textContent = `Kalan süre: ${eta}`;
+
               if (percent >= 100) {
                 clearInterval(progressInterval);
                 text.textContent = '✔️ İndirme tamamlandı';
+                speedText.textContent = '';
+                etaText.textContent = '';
               }
             });
         }, 1000);
