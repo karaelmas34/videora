@@ -6,7 +6,7 @@ import uuid
 import shutil
 import threading
 import time
-import requests  # ✅ reCAPTCHA doğrulaması için gerekli
+import requests
 from progress_hook import progress_writer
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -14,7 +14,6 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ✅ reCAPTCHA doğrulama fonksiyonu
 def verify_recaptcha(token):
     secret_key = "6LcEY4crAAAAADo4OS9wcJiR8aUUq-0qnhGP5zMS"
     payload = {
@@ -31,6 +30,14 @@ def index():
 
 @app.route('/download', methods=['POST'])
 def download():
+    # ✅ Cookie dosyası kontrolü (log ekranına yazılır)
+    if os.path.exists("cookies.txt"):
+        with open("cookies.txt", "r") as f:
+            lines = f.readlines()
+            print(f"✅ Cookie dosyası bulundu. Satır sayısı: {len(lines)}")
+    else:
+        print("❌ Cookie dosyası bulunamadı!")
+
     # ✅ reCAPTCHA doğrulaması
     recaptcha_token = request.form.get('g-recaptcha-response')
     if not verify_recaptcha(recaptcha_token):
@@ -130,6 +137,5 @@ def file_download(user_id):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# app.py'nin en sonunda sadece bu olsun:
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
