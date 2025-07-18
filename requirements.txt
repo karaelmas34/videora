@@ -1,2 +1,4 @@
-Flask==2.3.2
-yt-dlp==2023.12.30
+Flask>=2.3.0
+yt-dlp>=2024.03.10
+requests
+gunicorn
