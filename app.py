@@ -4,7 +4,6 @@ import os
 import json
 import uuid
 import shutil
-import subprocess
 import requests
 from progress_hook import progress_writer
 
@@ -16,10 +15,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # ✅ Cloudflare Turnstile doğrulama
 def verify_turnstile(token):
     secret_key = "0x4AAAAAABlvkAABpBjavLJPU2Dwa4JKJkM"
-    payload = {
-        'secret': secret_key,
-        'response': token
-    }
+    payload = {'secret': secret_key, 'response': token}
     r = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=payload)
     result = r.json()
     return result.get("success", False)
@@ -45,20 +41,7 @@ def download():
     outtmpl = os.path.join(user_dir, '%(title)s.%(ext)s')
     progress_file = os.path.join(user_dir, 'progress.json')
 
-    # ✅ Cookie dosyası tanımı (downloads içinde tek dosya)
-    cookie_file = os.path.join(DOWNLOAD_DIR, f"{user_id}_cookies.txt")
-
-    # ✅ Cookie çekme (sadece yerel çalışmada geçerlidir)
-    try:
-        subprocess.run([
-            "yt-dlp",
-            "--cookies-from-browser", "chrome",
-            "--cookies", cookie_file,
-            "--print-json",
-            url
-        ], check=True)
-    except Exception as e:
-        print(f"❌ Cookie çekme hatası: {e}")
+    cookie_file = "cookies.txt"  # ✅ Kullanıcı tarafından yüklenmiş olmalı
 
     with open(progress_file, 'w') as f:
         json.dump({'percent': 0, 'speed': 0, 'eta': 0}, f)
@@ -77,7 +60,7 @@ def download():
         'merge_output_format': 'mp4' if format_choice == 'mp4' else None,
         'socket_timeout': 60,
         'progress_hooks': [hook_with_id],
-        'cookiesfromfile': cookie_file,
+        'cookiesfromfile': cookie_file,  # ✅ Cookie dosyası dahil edildi
         'postprocessors': [
             {
                 'key': 'FFmpegExtractAudio',
@@ -108,14 +91,14 @@ def download():
 
         response = send_file(response_file, as_attachment=True)
 
-        # ✅ Temizlik fonksiyonu
         def cleanup():
             try:
                 shutil.rmtree(user_dir)
                 print(f"✅ Klasör silindi: {user_id}")
+                # ✅ Cookie dosyasını da sil (isteğe bağlı)
                 if os.path.exists(cookie_file):
                     os.remove(cookie_file)
-                    print(f"✅ Cookie dosyası silindi: {cookie_file}")
+                    print("✅ cookies.txt dosyası silindi.")
             except Exception as e:
                 print(f"❌ Temizlik hatası: {e}")
 
