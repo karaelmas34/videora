@@ -4,8 +4,6 @@ import os
 import json
 import uuid
 import shutil
-import threading
-import time
 import requests
 from progress_hook import progress_writer
 
@@ -14,15 +12,14 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-def verify_recaptcha(token):
-    secret_key = "6LcEY4crAAAAADo4OS9wcJiR8aUUq-0qnhGP5zMS"
-    payload = {
+def verify_turnstile(token):
+    secret_key = "0x4AAAAAABlvkAABpBjavLJPU2Dwa4JKJkM"  # Cloudflare Turnstile secret
+    response = requests.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
         'secret': secret_key,
         'response': token
-    }
-    r = requests.post('https://www.google.com/recaptcha/api/siteverify', data=payload)
-    result = r.json()
-    return result.get('success', False)
+    })
+    result = response.json()
+    return result.get("success", False)
 
 @app.route('/')
 def index():
@@ -30,7 +27,7 @@ def index():
 
 @app.route('/download', methods=['POST'])
 def download():
-    # ✅ Cookie dosyası kontrolü (log ekranına yazılır)
+    # ✅ Cookie dosyası kontrolü
     if os.path.exists("cookies.txt"):
         with open("cookies.txt", "r") as f:
             lines = f.readlines()
@@ -38,10 +35,10 @@ def download():
     else:
         print("❌ Cookie dosyası bulunamadı!")
 
-    # ✅ reCAPTCHA doğrulaması
-    recaptcha_token = request.form.get('g-recaptcha-response')
-    if not verify_recaptcha(recaptcha_token):
-        return jsonify({'status': 'error', 'message': 'reCAPTCHA doğrulaması başarısız'}), 403
+    # ✅ Turnstile doğrulaması
+    token = request.form.get('cf-turnstile-response')
+    if not verify_turnstile(token):
+        return jsonify({'status': 'error', 'message': 'Doğrulama başarısız'}), 403
 
     url = request.form['url']
     format_choice = request.form['format']
@@ -138,6 +135,5 @@ def file_download(user_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
