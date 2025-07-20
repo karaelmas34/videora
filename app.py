@@ -4,6 +4,7 @@ import os
 import json
 import uuid
 import shutil
+import subprocess
 import requests
 from progress_hook import progress_writer
 
@@ -12,13 +13,15 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# ✅ Cloudflare Turnstile doğrulama
 def verify_turnstile(token):
-    secret_key = "0x4AAAAAABlvkAABpBjavLJPU2Dwa4JKJkM"  # Cloudflare Turnstile secret
-    response = requests.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
+    secret_key = "0x4AAAAAABlvkAABpBjavLJPU2Dwa4JKJkM"
+    payload = {
         'secret': secret_key,
         'response': token
-    })
-    result = response.json()
+    }
+    r = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=payload)
+    result = r.json()
     return result.get("success", False)
 
 @app.route('/')
@@ -27,15 +30,6 @@ def index():
 
 @app.route('/download', methods=['POST'])
 def download():
-    # ✅ Cookie dosyası kontrolü
-    if os.path.exists("cookies.txt"):
-        with open("cookies.txt", "r") as f:
-            lines = f.readlines()
-            print(f"✅ Cookie dosyası bulundu. Satır sayısı: {len(lines)}")
-    else:
-        print("❌ Cookie dosyası bulunamadı!")
-
-    # ✅ Turnstile doğrulaması
     token = request.form.get('cf-turnstile-response')
     if not verify_turnstile(token):
         return jsonify({'status': 'error', 'message': 'Doğrulama başarısız'}), 403
@@ -50,6 +44,21 @@ def download():
 
     outtmpl = os.path.join(user_dir, '%(title)s.%(ext)s')
     progress_file = os.path.join(user_dir, 'progress.json')
+
+    # ✅ Cookie dosyası tanımı (downloads içinde tek dosya)
+    cookie_file = os.path.join(DOWNLOAD_DIR, f"{user_id}_cookies.txt")
+
+    # ✅ Cookie çekme (sadece yerel çalışmada geçerlidir)
+    try:
+        subprocess.run([
+            "yt-dlp",
+            "--cookies-from-browser", "chrome",
+            "--cookies", cookie_file,
+            "--print-json",
+            url
+        ], check=True)
+    except Exception as e:
+        print(f"❌ Cookie çekme hatası: {e}")
 
     with open(progress_file, 'w') as f:
         json.dump({'percent': 0, 'speed': 0, 'eta': 0}, f)
@@ -68,7 +77,7 @@ def download():
         'merge_output_format': 'mp4' if format_choice == 'mp4' else None,
         'socket_timeout': 60,
         'progress_hooks': [hook_with_id],
-        'cookiesfromfile': 'cookies.txt',
+        'cookiesfromfile': cookie_file,
         'postprocessors': [
             {
                 'key': 'FFmpegExtractAudio',
@@ -99,10 +108,14 @@ def download():
 
         response = send_file(response_file, as_attachment=True)
 
+        # ✅ Temizlik fonksiyonu
         def cleanup():
             try:
                 shutil.rmtree(user_dir)
                 print(f"✅ Klasör silindi: {user_id}")
+                if os.path.exists(cookie_file):
+                    os.remove(cookie_file)
+                    print(f"✅ Cookie dosyası silindi: {cookie_file}")
             except Exception as e:
                 print(f"❌ Temizlik hatası: {e}")
 
