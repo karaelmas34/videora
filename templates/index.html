@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <title>TubeDown 🌍</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <!-- ✅ Cloudflare Turnstile script -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
   <div class="container">
@@ -24,8 +25,8 @@
       <!-- ✅ Buton önce -->
       <button type="submit">İndir</button>
 
-      <!-- ✅ CAPTCHA kutusu alta taşındı -->
-      <div class="g-recaptcha" data-sitekey="6LcEY4crAAAAALen0S56cvLdOaMkvwX1Q2_rbFMI"></div>
+      <!-- ✅ Cloudflare Turnstile CAPTCHA -->
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAABlvkO9GKsgMDNZ7"></div>
     </form>
 
     <div id="loading" style="display:none;">
@@ -54,15 +55,15 @@
     if (progressInterval) clearInterval(progressInterval);
 
     const formData = new FormData(this);
-    const recaptchaResponse = grecaptcha.getResponse();
+    const token = document.querySelector('[name="cf-turnstile-response"]')?.value;
 
-    if (!recaptchaResponse) {
-      alert("Lütfen reCAPTCHA doğrulamasını tamamlayın.");
+    if (!token) {
+      alert("Lütfen doğrulamayı tamamlayın.");
       document.getElementById("loading").style.display = "none";
       return;
     }
 
-    formData.append("g-recaptcha-response", recaptchaResponse);
+    formData.append("cf-turnstile-response", token);
     document.getElementById("loading").style.display = "block";
 
     fetch("/download", {
